@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}</style>
+<title>Defiant Timer Remote</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: one narrow column like a handheld remote — status strip, function tabs, one panel, a big send key. */
+:root {
+  --bg: #eef1f4;
+  --panel: #ffffff;
+  --ink: #17212b;
+  --muted: #5a6876;
+  --line: #d5dce3;
+  --lamp: #f0a81c;
+  --lamp-ink: #2b1d00;
+  --lamp-soft: #fdf1d6;
+  --ok: #1f7a4d;
+  --warn: #a4361f;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1419; --panel: #18202a; --ink: #e5ebf0; --muted: #93a1ae; --line: #2a3542;
+    --lamp: #f5b83d; --lamp-ink: #241800; --lamp-soft: #2c2410; --ok: #5fc48f; --warn: #f08a72;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1419; --panel: #18202a; --ink: #e5ebf0; --muted: #93a1ae; --line: #2a3542;
+  --lamp: #f5b83d; --lamp-ink: #241800; --lamp-soft: #2c2410; --ok: #5fc48f; --warn: #f08a72;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.9rem; letter-spacing: 0.01em; margin: 0; line-height: 1.05; text-wrap: balance; }
+.sig { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); letter-spacing: 0.02em; }
+.status { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-size: 0.8rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel);
+  color: var(--muted); font-variant-numeric: tabular-nums; display: inline-flex; gap: 6px; align-items: center;
+}
+.chip b { color: var(--ink); font-weight: 600; }
+.chip.need { border-color: var(--warn); color: var(--warn); }
+button.chip { cursor: pointer; font: inherit; font-size: 0.8rem; }
+
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.tab {
+  font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 12px 6px; border-radius: var(--r); border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tab:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--lamp); outline-offset: 2px; }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.panel h2 { font-family: var(--font-display); font-weight: 600; font-size: 1.35rem; margin: 0; letter-spacing: 0.02em; }
+.panel p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 120px; }
+.field label, .lbl { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+input[type="time"], input[type="number"], input[type="text"] {
+  font: inherit; font-size: 1.1rem; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); width: 100%; font-variant-numeric: tabular-nums;
+}
+.big { font-family: var(--font-display); font-size: 2.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+
+.send {
+  font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; letter-spacing: 0.06em; text-transform: uppercase;
+  width: 100%; padding: 16px; border: 0; border-radius: 12px; background: var(--lamp); color: var(--lamp-ink); cursor: pointer;
+  box-shadow: 0 0 0 0 var(--lamp);
+}
+.send:disabled { opacity: 0.55; cursor: progress; }
+.send.alt { background: transparent; color: var(--ink); border: 2px solid var(--line); }
+.send.danger { background: var(--warn); color: var(--panel); }
+.sending .send:not(:disabled) { opacity: 0.55; }
+.btnrow { display: flex; gap: 10px; flex-wrap: wrap; }
+.btnrow > * { flex: 1 1 140px; }
+.ghost { font: inherit; font-size: 0.9rem; font-weight: 600; background: none; border: 1px dashed var(--line); color: var(--ink); padding: 10px; border-radius: 8px; cursor: pointer; }
+.linkish { font: inherit; font-size: 0.85rem; background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 0; }
+
+.days { display: flex; gap: 4px; flex-wrap: wrap; }
+.day {
+  width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--muted);
+  font: inherit; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+}
+.day[aria-pressed="true"] { background: var(--lamp); border-color: var(--lamp); color: var(--lamp-ink); }
+.sched { border: 1px solid var(--line); border-radius: var(--r); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.sched.off { opacity: 0.55; }
+.sched-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.sched-head .lbl { font-variant-numeric: tabular-nums; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer; }
+.toggle input { width: 20px; height: 20px; accent-color: var(--lamp); }
+
+.sun { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sun div { background: var(--bg); border-radius: var(--r); padding: 12px; }
+
+.msg { font-size: 0.92rem; padding: 10px 12px; border-radius: 8px; background: var(--lamp-soft); color: var(--ink); }
+.msg.ok { background: transparent; border: 1px solid var(--ok); color: var(--ok); }
+.msg.err { background: transparent; border: 1px solid var(--warn); color: var(--warn); }
+.meter { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; background: var(--lamp); }
+
+.tips { font-size: 0.9rem; color: var(--muted); }
+.tips ol { margin: 6px 0 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 4px; }
+details { font-size: 0.85rem; color: var(--muted); }
+details summary { cursor: pointer; }
+.bits { font-family: var(--font-mono); font-size: 0.72rem; word-break: break-all; color: var(--muted); margin-top: 6px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap" id="app">
+  <header>
+    <h1>Defiant Timer Remote</h1>
+    <span class="sig">7600&nbsp;Hz · 3&nbsp;ms slots · 3.5&nbsp;mm</span>
+  </header>
+
+  <div class="status" id="status"></div>
+
+  <div class="tabs" role="tablist" id="tabs"></div>
+
+  <section class="panel" id="panel" role="tabpanel"></section>
+
+  <div id="feedback" hidden></div>
+
+  <section class="panel" id="settings" hidden>
+    <h2>Location &amp; clock</h2>
+    <p>Every command also sets the timer's clock and location. The timer uses the location to work out sunset and sunrise for Dusk to Dawn.</p>
+    <div class="row">
+      <div class="field"><label for="lat">Latitude</label><input id="lat" type="text" inputmode="decimal" placeholder="e.g. 32.78"></div>
+      <div class="field"><label for="lng">Longitude</label><input id="lng" type="text" inputmode="decimal" placeholder="e.g. -96.80"></div>
+    </div>
+    <div class="btnrow">
+      <button class="ghost" id="geo">Use this phone's location</button>
+      <button class="ghost" id="saveLoc">Save location</button>
+    </div>
+    <p style="font-size:.85rem">Two decimal places is plenty. Western longitudes are negative. You can copy coordinates from a long-press in Google Maps.</p>
+    <label class="toggle"><input type="checkbox" id="dst" checked> Daylight saving time</label>
+    <p style="font-size:.85rem">Turn this off if your area doesn't observe daylight saving time.</p>
+  </section>
+
+  <section class="tips">
+    <span class="lbl">Before you send</span>
+    <ol>
+      <li>Plug the cable from the phone's headphone jack (or a USB-C audio adapter) into the timer.</li>
+      <li>Turn media volume all the way up. Turn off Dolby, equalizer or "adaptive sound" effects.</li>
+      <li>Keep this page open until the send bar finishes.</li>
+    </ol>
+  </section>
+
+  <details>
+    <summary>Last signal sent</summary>
+    <div class="bits" id="bits">Nothing sent yet.</div>
+  </details>
+</div>
+
+<script>
+// ---------- Protocol encoder (ported from com.smartec.appTimer v1.1.5, verified against the app's own test vectors) ----------
+const TimerEncoder = (() => {
+  const upfill = (n, len) => {
+    const s = Math.abs(n).toString(2);
+    if (s.length > len) throw new Error(`value ${n} does not fit in ${len} bits`);
+    return s.padStart(len, '0');
+  };
+  const checksum = (bits) => {
+    const padded = bits + '0'.repeat(8 - (bits.length % 8));
+    let sum = 0;
+    for (let i = 0; i < padded.length; i += 8) sum += parseInt(padded.slice(i, i + 8), 2);
+    let c = (sum & 0xff).toString(2).padStart(8, '0');
+    if (c[7] === '1') c += '1';
+    return c;
+  };
+  const coord = (v) => {
+    const rounded = Math.round(v);
+    const decimal = Math.round(100 * (v - rounded));
+    return (rounded >= 0 ? '0' : '1') + upfill(rounded, 9) + upfill(decimal, 7);
+  };
+  const sync = (clock, env) => {
+    const tz = Math.trunc(env.tzHours);
+    return [
+      upfill(clock.year - 2000, 7), upfill(clock.month, 4), upfill(clock.day, 5),
+      upfill(clock.hour * 60 + clock.minute, 12),
+      clock.weekday === 0 ? '111' : upfill(clock.weekday, 3),
+      env.dst ? '1' : '0',
+      (tz >= 0 ? '0' : '1') + upfill(tz, 5),
+      coord(env.lng), coord(env.lat),
+    ].join('');
+  };
+  const withSum = (bits) => bits + checksum(bits);
+  const duration = (start, end) => (end < start ? 1440 - (start - end) : end - start);
+  const DAY_BITS = [2, 128, 64, 32, 16, 8, 4]; // index 0 = Sunday
+  const modeByte = (days) => upfill(days.reduce((a, on, i) => a + (on ? DAY_BITS[i] : 0), 0), 8);
+  const simple = (cmd, clock, env) => withSum(cmd + sync(clock, env) + '00000000');
+  return {
+    on: (clock, env) => simple('1111', clock, env),
+    clear: (clock, env) => simple('0000', clock, env),
+    program: (intervals, clock, env) => {
+      if (intervals.length < 1 || intervals.length > 7) throw new Error('Choose between 1 and 7 schedules.');
+      const body = intervals.map((iv) => '11111' + upfill(iv.start, 11) + upfill(duration(iv.start, iv.end), 11) + modeByte(iv.days)).join('');
+      return withSum('1001' + sync(clock, env) + upfill(intervals.length * 35, 8) + body);
+    },
+    random: (start, end, clock, env) =>
+      withSum('0101' + sync(clock, env) + upfill(35, 8) + '11111' + upfill(start, 11) + upfill(duration(start, end), 11) + '11111110'),
+    countdown: (minutes, start, clock, env) =>
+      withSum('0100' + sync(clock, env) + upfill(18, 8) + '00001' + upfill(minutes, 12) + (start ? '0' : '1')),
+    dusk: (sunrise, sunset, clock, env) =>
+      withSum('1010' + sync(clock, env) + upfill(35, 8) + '11111' + upfill(sunset, 11) +
+        upfill(sunset < sunrise ? sunrise - sunset : 1440 - (sunset - sunrise), 11) + '11111110'),
+    slots: (data) => {
+      const s = [];
+      for (let i = 0; i < 120; i++) s.push(i % 9 === 0 && i < 90 ? 1 : 0);
+      for (let r = 0; r < 3; r++) {
+        s.push(1, 1, 1, 0);
+        for (const ch of data) ch === '1' ? s.push(1, 0) : s.push(0, 1);
+        s.push(0, 0, 0, 0, 0, 0);
+      }
+      for (let i = 0; i < 33; i++) s.push(0);
+      return s;
+    },
+    samples: (slots) => {
+      const RATE = 44100, FREQ = 7600;
+      const total = Math.ceil(3 * slots.length * RATE / 1000);
+      const per = Math.floor(total / slots.length);
+      const out = new Float32Array(total);
+      slots.forEach((bit, n) => {
+        if (!bit) return;
+        for (let i = 0; i < per; i++) out[n * per + i] = Math.sin(2 * Math.PI * FREQ * i / RATE) > 0 ? 1 : -1;
+      });
+      out[0] = 0;
+      return out;
+    },
+    SAMPLE_RATE: 44100,
+  };
+})();
+
+// ---------- Sunrise / sunset (almanac algorithm, official zenith — same method the app used) ----------
+function sunTimes(date, lat, lng) {
+  const rad = Math.PI / 180, zenith = 90.8333;
+  const start = new Date(date.getFullYear(), 0, 0);
+  const N = Math.floor((new Date(date.getFullYear(), date.getMonth(), date.getDate()) - start) / 864e5);
+  const lngHour = lng / 15;
+  const calc = (rising) => {
+    const t = N + ((rising ? 6 : 18) - lngHour) / 24;
+    const M = 0.9856 * t - 3.289;
+    let L = M + 1.916 * Math.sin(M * rad) + 0.020 * Math.sin(2 * M * rad) + 282.634;
+    L = ((L % 360) + 360) % 360;
+    let RA = Math.atan(0.91764 * Math.tan(L * rad)) / rad;
+    RA = ((RA % 360) + 360) % 360;
+    RA = (RA + Math.floor(L / 90) * 90 - Math.floor(RA / 90) * 90) / 15;
+    const sinDec = 0.39782 * Math.sin(L * rad), cosDec = Math.cos(Math.asin(sinDec));
+    const cosH = (Math.cos(zenith * rad) - sinDec * Math.sin(lat * rad)) / (cosDec * Math.cos(lat * rad));
+    if (cosH > 1 || cosH < -1) return null;
+    const H = (rising ? 360 - Math.acos(cosH) / rad : Math.acos(cosH) / rad) / 15;
+    const T = H + RA - 0.06571 * t - 6.622;
+    const UT = (((T - lngHour) % 24) + 24) % 24;
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) + Math.round(UT * 60) * 60000);
+    return d.getHours() * 60 + d.getMinutes();
+  };
+  const rise = calc(true), set = calc(false);
+  return rise == null || set == null ? null : { rise, set };
+}
+
+// ---------- Storage (per-phone convenience only) ----------
+const store = {
+  get(k, fallback) { try { const v = localStorage.getItem('defiant.' + k); return v == null ? fallback : JSON.parse(v); } catch { return fallback; } },
+  set(k, v) { try { localStorage.setItem('defiant.' + k, JSON.stringify(v)); } catch {} },
+};
+
+// ---------- State ----------
+const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const state = {
+  tab: store.get('tab', 'onoff'),
+  loc: store.get('loc', null),
+  dst: store.get('dst', true),
+  schedules: store.get('schedules', [{ start: 18 * 60, end: 23 * 60, days: [true, true, true, true, true, true, true], enabled: true, example: true }]),
+  random: store.get('random', { start: 18 * 60, end: 23 * 60 }),
+  countdown: store.get('countdown', 60),
+  countdownEnd: store.get('countdownEnd', null),
+  sending: false,
+  confirmClear: false,
+};
+
+const $ = (s) => document.querySelector(s);
+const toTime = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const fromTime = (s) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+const fmt12 = (m) => { const h = Math.floor(m / 60), mm = String(m % 60).padStart(2, '0'); return `${((h + 11) % 12) + 1}:${mm} ${h < 12 ? 'AM' : 'PM'}`; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function tzInfo(now = new Date()) {
+  const y = now.getFullYear();
+  const jan = new Date(y, 0, 1).getTimezoneOffset(), jul = new Date(y, 6, 1).getTimezoneOffset();
+  const stdOffsetMin = Math.max(jan, jul);
+  return { stdHours: -stdOffsetMin / 60, inDst: now.getTimezoneOffset() < stdOffsetMin && jan !== jul };
+}
+function clockNow() {
+  const d = new Date();
+  return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), hour: d.getHours(), minute: d.getMinutes(), weekday: d.getDay() };
+}
+function env() {
+  const tz = tzInfo();
+  return { tzHours: tz.stdHours, dst: tz.inDst && state.dst, lat: state.loc.lat, lng: state.loc.lng };
+}
+
+// ---------- Audio ----------
+let audioCtx = null;
+function playBits(bits) {
+  const samples = TimerEncoder.samples(TimerEncoder.slots(bits));
+  if (!audioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    try { audioCtx = new AC({ sampleRate: TimerEncoder.SAMPLE_RATE }); } catch { audioCtx = new AC(); }
+  }
+  const buf = audioCtx.createBuffer(2, samples.length, TimerEncoder.SAMPLE_RATE);
+  buf.copyToChannel(samples, 0); buf.copyToChannel(samples, 1);
+  return audioCtx.resume().then(() => new Promise((resolve) => {
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf; src.connect(audioCtx.destination);
+    src.onended = resolve;
+    src.start();
+  })).then(() => buf.duration);
+}
+
+async function send(label, build, after) {
+  if (state.sending) return;
+  if (!state.loc) { feedback('err', 'Set your location first. Tap the location chip at the top.'); openSettings(); return; }
+  let bits;
+  try { bits = build(); } catch (e) { feedback('err', e.message); return; }
+  state.sending = true;
+  document.body.classList.add('sending');
+  document.querySelectorAll('.send').forEach((b) => (b.disabled = true));
+  const secs = (TimerEncoder.slots(bits).length * 3) / 1000;
+  feedback('progress', `Sending ${label}…`, secs);
+  $('#bits').textContent = `${label} · ${bits.length} bits · ${new Date().toLocaleTimeString()}\n${bits}`;
+  try {
+    await playBits(bits);
+    feedback('ok', `${label} sent. If the timer didn't respond, check the cable and volume, then send again.`);
+    if (after) after();
+  } catch (e) {
+    feedback('err', `The phone couldn't play the signal (${e.message}). Tap the button again.`);
+  } finally {
+    state.sending = false;
+    document.body.classList.remove('sending');
+    document.querySelectorAll('.send').forEach((b) => (b.disabled = false));
+  }
+}
+
+function feedback(kind, text, secs) {
+  const el = $('#feedback');
+  el.hidden = false;
+  if (kind === 'progress') {
+    el.innerHTML = `<div class="msg">${esc(text)}<div class="meter" style="margin-top:8px"><i id="bar"></i></div></div>`;
+    const bar = $('#bar'), t0 = performance.now();
+    const step = () => { const p = Math.min(1, (performance.now() - t0) / (secs * 1000)); if (bar.isConnected) { bar.style.width = p * 100 + '%'; if (p < 1) requestAnimationFrame(step); } };
+    requestAnimationFrame(step);
+  } else {
+    el.innerHTML = `<div class="msg ${kind}">${esc(text)}</div>`;
+  }
+}
+
+// ---------- UI ----------
+const TABS = [
+  ['onoff', 'On / Off'], ['dusk', 'Dusk to Dawn'], ['random', 'Random'],
+  ['program', 'Program'], ['countdown', 'Countdown'], ['clear', 'Clear'],
+];
+
+function renderStatus() {
+  const tz = tzInfo();
+  const sign = tz.stdHours >= 0 ? '+' : '−';
+  const locChip = state.loc
+    ? `<button class="chip" id="locChip">Location <b>${state.loc.lat.toFixed(2)}, ${state.loc.lng.toFixed(2)}</b></button>`
+    : `<button class="chip need" id="locChip">Set location</button>`;
+  $('#status').innerHTML = `
+    <span class="chip">Clock <b id="clk">${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</b></span>
+    <span class="chip">UTC <b>${sign}${Math.abs(tz.stdHours)}</b>${tz.inDst && state.dst ? ' · <b>DST</b>' : ''}</span>
+    ${locChip}`;
+  $('#locChip').onclick = openSettings;
+}
+function openSettings() {
+  const s = $('#settings');
+  s.hidden = !s.hidden;
+  if (!s.hidden) {
+    $('#lat').value = state.loc ? state.loc.lat : '';
+    $('#lng').value = state.loc ? state.loc.lng : '';
+    $('#dst').checked = state.dst;
+    s.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function renderTabs() {
+  $('#tabs').innerHTML = TABS.map(([id, name]) =>
+    `<button class="tab" role="tab" id="tab-${id}" aria-selected="${state.tab === id}" data-tab="${id}">${name}</button>`).join('');
+  $('#tabs').onclick = (e) => {
+    const t = e.target.closest('[data-tab]'); if (!t) return;
+    state.tab = t.dataset.tab; state.confirmClear = false; store.set('tab', state.tab);
+    $('#feedback').hidden = true; renderTabs(); renderPanel();
+  };
+}
+
+function renderPanel() {
+  const p = $('#panel');
+  const views = { onoff, dusk, random, program, countdown, clear };
+  p.innerHTML = '';
+  views[state.tab](p);
+}
+
+function onoff(p) {
+  p.innerHTML = `
+    <h2>On / Off</h2>
+    <p>Switches the timer's outlet on or off right now. Each send toggles it, the same as the ON/OFF button in the old app.</p>
+    <button class="send" id="go">Send On / Off</button>`;
+  $('#go').onclick = () => send('On / Off', () => TimerEncoder.on(clockNow(), env()));
+}
+
+function dusk(p) {
+  const today = new Date();
+  const st = state.loc ? sunTimes(today, state.loc.lat, state.loc.lng) : null;
+  p.innerHTML = `
+    <h2>Dusk to Dawn</h2>
+    <p>Lights turn on at sunset and off at sunrise, every day. The timer adjusts as the seasons change.</p>
+    ${st ? `<div class="sun">
+        <div><span class="lbl">Sunset today</span><div class="big">${fmt12(st.set)}</div></div>
+        <div><span class="lbl">Sunrise</span><div class="big">${fmt12(st.rise)}</div></div>
+      </div>` : `<div class="msg">${state.loc ? 'No sunset or sunrise at this location today.' : 'Set your location to see today\'s sunset and sunrise.'}</div>`}
+    <p style="font-size:.85rem">Want different times, like sunset to 11 PM? Use Program instead.</p>
+    <button class="send" id="go">Send Dusk to Dawn</button>`;
+  $('#go').onclick = () => send('Dusk to Dawn', () => {
+    const s = sunTimes(new Date(), state.loc.lat, state.loc.lng);
+    if (!s) throw new Error('No sunset or sunrise at this location today.');
+    return TimerEncoder.dusk(s.rise, s.set, clockNow(), env());
+  });
+}
+
+function random(p) {
+  p.innerHTML = `
+    <h2>Random</h2>
+    <p>Turns the light on and off at random times inside this window, every day, so the house looks lived in while you're away. It keeps running until you send something else.</p>
+    <div class="row">
+      <div class="field"><label for="rs">Window starts</label><input type="time" id="rs" value="${toTime(state.random.start)}"></div>
+      <div class="field"><label for="re">Window ends</label><input type="time" id="re" value="${toTime(state.random.end)}"></div>
+    </div>
+    <button class="send" id="go">Send Random</button>`;
+  const save = () => { state.random = { start: fromTime($('#rs').value || '18:00'), end: fromTime($('#re').value || '23:00') }; store.set('random', state.random); };
+  $('#rs').onchange = save; $('#re').onchange = save;
+  $('#go').onclick = () => { save(); send('Random', () => TimerEncoder.random(state.random.start, state.random.end, clockNow(), env())); };
+}
+
+function overlaps(list) {
+  // Mirrors the old app's conflict check: same-day windows (wrapping past midnight) must not overlap.
+  const spans = [];
+  list.forEach((s, idx) => {
+    const end = s.end < s.start ? s.end + 1440 : s.end;
+    s.days.forEach((on, d) => { if (on) spans.push({ idx, d, a: d * 1440 + s.start, b: d * 1440 + end }); });
+  });
+  for (const x of spans) for (const y of spans)
+    if (x.idx < y.idx && x.a < y.b && y.a < x.b) return `Schedule ${x.idx + 1} on ${DAY_NAMES[x.d]} overlaps schedule ${y.idx + 1} on ${DAY_NAMES[y.d]}.`;
+  return null;
+}
+
+function program(p) {
+  const list = state.schedules;
+  const saveAll = () => { list.forEach((s) => delete s.example); store.set('schedules', list); };
+  p.innerHTML = `
+    <h2>Program</h2>
+    <p>Set up to 7 on/off times, each on the days you choose. Sending replaces whatever program the timer had.</p>
+    ${list.some((s) => s.example) ? '<div class="msg">This is an example schedule. Change it to suit you; your edits are saved on this phone.</div>' : ''}
+    <div id="scheds" style="display:flex;flex-direction:column;gap:10px"></div>
+    ${list.length < 7 ? '<button class="ghost" id="add">+ Add a schedule</button>' : ''}
+    <button class="send" id="go">Send Program</button>`;
+  const wrap = $('#scheds');
+  list.forEach((s, i) => {
+    const el = document.createElement('div');
+    el.className = 'sched' + (s.enabled ? '' : ' off');
+    el.innerHTML = `
+      <div class="sched-head">
+        <span class="lbl">Schedule ${i + 1} · ${fmt12(s.start)} – ${fmt12(s.end)}</span>
+        <span style="display:flex;gap:12px;align-items:center">
+          <label class="toggle"><input type="checkbox" id="en${i}" ${s.enabled ? 'checked' : ''}> On</label>
+          <button class="linkish" id="del${i}">Remove</button>
+        </span>
+      </div>
+      <div class="row">
+        <div class="field"><label for="st${i}">Lights on</label><input type="time" id="st${i}" value="${toTime(s.start)}"></div>
+        <div class="field"><label for="et${i}">Lights off</label><input type="time" id="et${i}" value="${toTime(s.end)}"></div>
+      </div>
+      <div class="days" role="group" aria-label="Days">${s.days.map((on, d) =>
+        `<button class="day" data-d="${d}" aria-pressed="${on}" aria-label="${DAY_NAMES[d]}">${DAY_LETTERS[d]}</button>`).join('')}</div>`;
+    wrap.appendChild(el);
+    el.querySelector(`#en${i}`).onchange = (e) => { s.enabled = e.target.checked; saveAll(); renderPanel(); };
+    el.querySelector(`#st${i}`).onchange = (e) => { if (e.target.value) { s.start = fromTime(e.target.value); saveAll(); renderPanel(); } };
+    el.querySelector(`#et${i}`).onchange = (e) => { if (e.target.value) { s.end = fromTime(e.target.value); saveAll(); renderPanel(); } };
+    el.querySelector(`#del${i}`).onclick = () => { list.splice(i, 1); saveAll(); renderPanel(); };
+    el.querySelector('.days').onclick = (e) => {
+      const b = e.target.closest('[data-d]'); if (!b) return;
+      s.days[+b.dataset.d] = !s.days[+b.dataset.d]; saveAll();
+      b.setAttribute('aria-pressed', s.days[+b.dataset.d]);
+    };
+  });
+  const add = $('#add');
+  if (add) add.onclick = () => { list.push({ start: 6 * 60, end: 8 * 60, days: [false, true, true, true, true, true, false], enabled: true }); saveAll(); renderPanel(); };
+  $('#go').onclick = () => send('Program', () => {
+    const active = list.filter((s) => s.enabled);
+    if (!active.length) throw new Error('Turn on at least one schedule.');
+    active.forEach((s, i) => { if (!s.days.some(Boolean)) throw new Error(`Pick at least one day for schedule ${list.indexOf(s) + 1}.`); });
+    const clash = overlaps(active);
+    if (clash) throw new Error(clash);
+    saveAll();
+    return TimerEncoder.program(active.map(({ start, end, days }) => ({ start, end, days })), clockNow(), env());
+  });
+}
+
+function countdown(p) {
+  const h = Math.floor(state.countdown / 60), m = state.countdown % 60;
+  const running = state.countdownEnd && state.countdownEnd > Date.now();
+  p.innerHTML = `
+    <h2>Countdown</h2>
+    <p>Turns the light on now and off again after this long.</p>
+    <div class="row">
+      <div class="field"><label for="ch">Hours</label><input type="number" id="ch" min="0" max="23" value="${h}"></div>
+      <div class="field"><label for="cm">Minutes</label><input type="number" id="cm" min="0" max="59" value="${m}"></div>
+    </div>
+    ${running ? `<div class="msg">Countdown running. Ends around ${new Date(state.countdownEnd).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.</div>` : ''}
+    <div class="btnrow">
+      <button class="send" id="go">Start countdown</button>
+      <button class="send alt" id="stop">Stop countdown</button>
+    </div>`;
+  const read = () => {
+    const hh = Math.max(0, Math.min(23, parseInt($('#ch').value, 10) || 0));
+    const mm = Math.max(0, Math.min(59, parseInt($('#cm').value, 10) || 0));
+    state.countdown = hh * 60 + mm; store.set('countdown', state.countdown);
+  };
+  $('#ch').onchange = read; $('#cm').onchange = read;
+  $('#go').onclick = () => {
+    read();
+    send('Countdown start', () => {
+      if (!state.countdown) throw new Error('Set a countdown longer than 0 minutes.');
+      return TimerEncoder.countdown(state.countdown, true, clockNow(), env());
+    }, () => { state.countdownEnd = Date.now() + state.countdown * 60000; store.set('countdownEnd', state.countdownEnd); renderPanel(); });
+  };
+  $('#stop').onclick = () => send('Countdown stop', () => {
+    // The old app sent the countdown's end clock time with the stop flag.
+    const end = state.countdownEnd ? new Date(state.countdownEnd) : null;
+    return TimerEncoder.countdown(end ? end.getHours() * 60 + end.getMinutes() : 0, false, clockNow(), env());
+  }, () => { state.countdownEnd = null; store.set('countdownEnd', null); renderPanel(); });
+}
+
+function clear(p) {
+  p.innerHTML = `
+    <h2>Clear</h2>
+    <p>Erases every program, random and dusk-to-dawn setting stored in the timer. Your schedules on this page are kept.</p>
+    ${state.confirmClear
+      ? `<div class="msg err">This can't be undone on the timer. Send the clear signal?</div>
+         <div class="btnrow"><button class="send danger" id="go">Yes, clear the timer</button><button class="send alt" id="no">Cancel</button></div>`
+      : `<button class="send danger" id="ask">Clear the timer…</button>`}`;
+  if (state.confirmClear) {
+    $('#no').onclick = () => { state.confirmClear = false; renderPanel(); };
+    $('#go').onclick = () => send('Clear', () => TimerEncoder.clear(clockNow(), env()), () => { state.confirmClear = false; renderPanel(); });
+  } else {
+    $('#ask').onclick = () => { state.confirmClear = true; renderPanel(); };
+  }
+}
+
+// ---------- Settings wiring ----------
+$('#saveLoc').onclick = () => {
+  const lat = parseFloat($('#lat').value), lng = parseFloat($('#lng').value);
+  if (!(Math.abs(lat) <= 90) || !(Math.abs(lng) <= 180)) { feedback('err', 'Enter a latitude between -90 and 90 and a longitude between -180 and 180.'); return; }
+  state.loc = { lat, lng }; store.set('loc', state.loc);
+  $('#settings').hidden = true; feedback('ok', 'Location saved.'); renderStatus(); renderPanel();
+};
+$('#geo').onclick = () => {
+  if (!navigator.geolocation) { feedback('err', "This browser can't share location. Type the coordinates instead."); return; }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => { $('#lat').value = pos.coords.latitude.toFixed(4); $('#lng').value = pos.coords.longitude.toFixed(4); },
+    () => feedback('err', "Location isn't available here. Type the coordinates instead."),
+    { timeout: 10000 });
+};
+$('#dst').onchange = (e) => { state.dst = e.target.checked; store.set('dst', state.dst); renderStatus(); };
+
+renderStatus(); renderTabs(); renderPanel();
+setInterval(() => { const c = $('#clk'); if (c) c.textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }, 15000);
+</script>
+
+</html>
