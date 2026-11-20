@@ -1,0 +1,1 @@
+I have several Defiant light switch timers installed at my house.  The vendor has abandoned support for the Android app, so this is a backup of the .apk, and a vibe coded html replacement for the app.  Use at your own risk!
